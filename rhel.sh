@@ -311,18 +311,11 @@ else
 print_install "Random Subdomain/Domain is Used"
 clear
     fi
-    # Validasi domain: tidak boleh kosong. Jika masih kosong (mis. input
-    # tidak sengaja kosong), fallback ke domain random via cf.sh.
-    # Kalau tetap gagal, batalkan instalasi dengan pesan yang jelas.
-    if [[ ! -s /etc/xray/domain ]]; then
-        print_install "Domain kosong - memakai Domain Random"
-        wget ${REPO}limit/cf.sh && chmod +x cf.sh && ./cf.sh
-        rm -f /root/cf.sh cf.sh
-        clear
-    fi
+    # Validasi domain: tidak boleh kosong. Domain kosong membuat nginx,
+    # SSL, dan HAProxy rusak diam-diam -> hentikan dengan pesan yang jelas.
     if [[ ! -s /etc/xray/domain ]]; then
         print_error "Domain"
-        echo "  Gagal mendapatkan domain. Instalasi dibatalkan."
+        echo "  Domain masih kosong. Instalasi dibatalkan - jalankan ulang dan isi domain dengan benar."
         exit 1
     fi
 }
@@ -505,6 +498,14 @@ EOF
     chown -R nginx:nginx /var/log/xray
     touch /var/log/xray/access.log /var/log/xray/error.log
     chown nginx:nginx /var/log/xray/access.log /var/log/xray/error.log
+    # Cek geodata: unduhan yang gagal/terputus menyisakan geoip.dat/geosite.dat
+    # 0 byte -> Xray gagal start ("code not found in geoip.dat"). Unduh ulang bila kosong.
+    if [[ ! -s /usr/local/share/xray/geoip.dat ]]; then
+        curl -L -o /usr/local/share/xray/geoip.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
+    fi
+    if [[ ! -s /usr/local/share/xray/geosite.dat ]]; then
+        curl -L -o /usr/local/share/xray/geosite.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat
+    fi
 print_success "Konfigurasi Packet"
 }
 
